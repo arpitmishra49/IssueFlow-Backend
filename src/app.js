@@ -5,6 +5,8 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import mongoSanitize from "express-mongo-sanitize";
 import xssClean from "xss-clean";
+import authRoutes from "./routes/auth.routes.js";
+import errorHandler from "./middlewares/error.middleware.js";
 
 const app = express();
 
@@ -40,6 +42,9 @@ app.use(express.json());
 //app.use(xssClean());
 
 // Logging in development
+app.use("/api/v1/auth", authRoutes);
+
+app.use(errorHandler);
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
