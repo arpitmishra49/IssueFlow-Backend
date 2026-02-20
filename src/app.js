@@ -10,6 +10,7 @@ import errorHandler from "./middlewares/error.middleware.js";
 import projectRoutes from "./routes/project.routes.js";
 import issueRoutes from "./routes/issue.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
+import apiRateLimiter from "./config/rateLimiter.js";
 
 const app = express();
 
@@ -29,11 +30,11 @@ app.use(
 );
 
 // Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-});
-app.use(limiter);
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 minutes
+//   max: 100,
+// });
+// app.use(limiter);
 
 // Body parser
 app.use(express.json());
@@ -45,6 +46,7 @@ app.use(express.json());
 //app.use(xssClean());
 
 // Logging in development
+app.use(apiRateLimiter);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/issues", issueRoutes);
