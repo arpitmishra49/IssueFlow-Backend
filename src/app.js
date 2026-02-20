@@ -8,6 +8,7 @@ import xssClean from "xss-clean";
 import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import projectRoutes from "./routes/project.routes.js";
+import issueRoutes from "./routes/issue.routes.js";
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use(express.json());
 // Logging in development
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/projects", projectRoutes);
+app.use("/api/v1/issues", issueRoutes);
 
 app.use(errorHandler);
 if (process.env.NODE_ENV !== "production") {
