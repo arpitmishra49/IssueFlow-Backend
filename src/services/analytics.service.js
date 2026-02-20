@@ -1,10 +1,8 @@
 import mongoose from "mongoose";
 import Issue from "../models/issue.model.js";
 import Project from "../models/project.model.js";
+import ActivityLog from "../models/activityLog.model.js";
 
-/**
- * Ensure user is a member of the project
- */
 const ensureProjectAccess = async (projectId, userId) => {
   const project = await Project.findById(projectId);
 
@@ -19,21 +17,15 @@ const ensureProjectAccess = async (projectId, userId) => {
   return project;
 };
 
-/**
- * Get analytics for a specific project
- */
 export const getProjectAnalytics = async (projectId, user) => {
-  // Ensure access
   await ensureProjectAccess(projectId, user.id);
 
   const objectProjectId = new mongoose.Types.ObjectId(projectId);
 
-  // 1️⃣ Total Issues
   const totalIssues = await Issue.countDocuments({
     project: objectProjectId,
   });
 
-  // 2️⃣ Issues by Status
   const issuesByStatus = await Issue.aggregate([
     { $match: { project: objectProjectId } },
     {
@@ -44,7 +36,6 @@ export const getProjectAnalytics = async (projectId, user) => {
     },
   ]);
 
-  // 3️⃣ Issues by Severity
   const issuesBySeverity = await Issue.aggregate([
     { $match: { project: objectProjectId } },
     {
@@ -55,7 +46,6 @@ export const getProjectAnalytics = async (projectId, user) => {
     },
   ]);
 
-  // 4️⃣ Developer Workload
   const developerWorkload = await Issue.aggregate([
     { $match: { project: objectProjectId, assignedTo: { $ne: null } } },
     {
@@ -66,37 +56,58 @@ export const getProjectAnalytics = async (projectId, user) => {
     },
   ]);
 
-  // 5️⃣ Average Resolution Time (Closed Issues Only)
-  const resolutionTime = await Issue.aggregate([
+  /**
+   * Average Resolution Time using ActivityLog
+   * (Time between ISSUE_CREATED and ISSUE_CLOSED)
+   */
+
+  const resolutionLogs = await ActivityLog.aggregate([
+    {
+      $lookup: {
+        from: "issues",
+        localField: "issue",
+        foreignField: "_id",
+        as: "issueData",
+      },
+    },
+    { $unwind: "$issueData" },
     {
       $match: {
-        project: objectProjectId,
-        status: "closed",
+        "issueData.project": objectProjectId,
+        action: "ISSUE_CLOSED",
       },
     },
     {
       $project: {
-        resolutionTime: {
-          $subtract: ["$updatedAt", "$createdAt"],
-        },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        avgResolutionTime: { $avg: "$resolutionTime" },
+        issue: 1,
+        closedAt: "$createdAt",
       },
     },
   ]);
+
+  let totalResolutionTime = 0;
+  let count = 0;
+
+  for (const log of resolutionLogs) {
+    const issue = await Issue.findById(log.issue);
+
+    if (issue) {
+      const resolutionTime =
+        new Date(log.closedAt) - new Date(issue.createdAt);
+
+      totalResolutionTime += resolutionTime;
+      count++;
+    }
+  }
+
+  const averageResolutionTime =
+    count > 0 ? totalResolutionTime / count : 0;
 
   return {
     totalIssues,
     issuesByStatus,
     issuesBySeverity,
     developerWorkload,
-    averageResolutionTime:
-      resolutionTime.length > 0
-        ? resolutionTime[0].avgResolutionTime
-        : 0,
+    averageResolutionTime,
   };
 };
