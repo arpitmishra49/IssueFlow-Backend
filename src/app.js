@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/error.middleware.js";
 import projectRoutes from "./routes/project.routes.js";
 import issueRoutes from "./routes/issue.routes.js";
+import analyticsRoutes from "./routes/analytics.routes.js";
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use(express.json());
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/issues", issueRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
 
 app.use(errorHandler);
 if (process.env.NODE_ENV !== "production") {
