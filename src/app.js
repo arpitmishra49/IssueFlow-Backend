@@ -2,72 +2,65 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import rateLimit from "express-rate-limit";
-import mongoSanitize from "express-mongo-sanitize";
-import xssClean from "xss-clean";
+
 import authRoutes from "./routes/auth.routes.js";
-import errorHandler from "./middlewares/error.middleware.js";
 import projectRoutes from "./routes/project.routes.js";
 import issueRoutes from "./routes/issue.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
+
 import apiRateLimiter from "./config/rateLimiter.js";
+import corsOptions from "./config/cors.config.js";
 import sanitizeMiddleware from "./middlewares/sanitize.middleware.js";
+import errorHandler from "./middlewares/error.middleware.js";
 
 const app = express();
 
 /* ==============================
-   Global Middlewares
+   GLOBAL MIDDLEWARES
 ============================== */
 
 // Security headers
 app.use(helmet());
 
-// CORS configuration
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL,
-    credentials: true,
-  })
-);
-
-// Rate Limiting
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000, // 15 minutes
-//   max: 100,
-// });
-// app.use(limiter);
+// CORS
+app.use(cors(corsOptions));
 
 // Body parser
 app.use(express.json());
 
-// Prevent NoSQL injection
-// app.use(mongoSanitize());
-
-// Prevent XSS
-//app.use(xssClean());
-
-// Logging in development
+// Sanitize inputs
 app.use(sanitizeMiddleware);
-app.use(apiRateLimiter);
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/projects", projectRoutes);
-app.use("/api/v1/issues", issueRoutes);
-app.use("/api/v1/analytics", analyticsRoutes);
 
-app.use(errorHandler);
+// Rate limiting
+app.use(apiRateLimiter);
+
+// Logging (development only)
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
 
 /* ==============================
-   Test Route
+   ROUTES
 ============================== */
 
+// Health check route
 app.get("/", (req, res) => {
   res.status(200).json({
     status: "success",
     message: "IssueFlow API is running 🚀",
   });
 });
+
+// API routes
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/projects", projectRoutes);
+app.use("/api/v1/issues", issueRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
+
+/* ==============================
+   ERROR HANDLER (MUST BE LAST)
+============================== */
+
+app.use(errorHandler);
 
 export default app;
