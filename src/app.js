@@ -11,6 +11,7 @@ import projectRoutes from "./routes/project.routes.js";
 import issueRoutes from "./routes/issue.routes.js";
 import analyticsRoutes from "./routes/analytics.routes.js";
 import apiRateLimiter from "./config/rateLimiter.js";
+import sanitizeMiddleware from "./middlewares/sanitize.middleware.js";
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use(express.json());
 //app.use(xssClean());
 
 // Logging in development
+app.use(sanitizeMiddleware);
 app.use(apiRateLimiter);
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/projects", projectRoutes);
