@@ -4,6 +4,7 @@ const corsOptions = {
         process.env.CLIENT_URL,
         "http://localhost:5173", // Vite
         "http://localhost:3000", // React
+        "http://localhost:5174",  
       ];
   
       if (!origin) return callback(null, true);
