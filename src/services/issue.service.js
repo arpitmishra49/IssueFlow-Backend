@@ -97,9 +97,22 @@ export const updateIssueStatus = async (issueId, newStatus, user) => {
  * Get Issues for a project
  */
 export const getProjectIssues = async (projectId, userId) => {
-  await checkProjectMembership(projectId, userId);
+  if (projectId) {
+    await checkProjectMembership(projectId, userId);
 
-  return Issue.find({ project: projectId })
+    return Issue.find({ project: projectId })
+      .populate("assignedTo", "name email")
+      .populate("createdBy", "name email")
+      .populate("project", "name");
+  }
+
+  // If no projectId → return issues from projects where user is member
+  const projects = await Project.find({ members: userId }).select("_id");
+
+  const projectIds = projects.map((p) => p._id);
+
+  return Issue.find({ project: { $in: projectIds } })
     .populate("assignedTo", "name email")
-    .populate("createdBy", "name email");
+    .populate("createdBy", "name email")
+    .populate("project", "name");
 };
