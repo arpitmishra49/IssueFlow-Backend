@@ -46,7 +46,7 @@ export const addMember = async (req, res, next) => {
   try {
     const project = await projectService.addMemberToProject(
       req.params.id,
-      req.body.userId
+      req.body.email // pass email only
     );
 
     res.status(200).json({

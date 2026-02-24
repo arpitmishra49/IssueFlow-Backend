@@ -1,4 +1,5 @@
 import Project from "../models/project.model.js";
+import User from "../models/user.model.js";
 
 /**
  * Create a new project
@@ -42,21 +43,32 @@ export const getProjectById = async (projectId) => {
 /**
  * Add member to project
  */
-export const addMemberToProject = async (projectId, userId) => {
+export const addMemberToProject = async (projectId, email) => {
   const project = await Project.findById(projectId);
 
   if (!project) {
     throw new Error("Project not found");
   }
 
-  if (!project.members.includes(userId)) {
-    project.members.push(userId);
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const isAlreadyMember = project.members
+    .filter(Boolean)
+    .some((member) => member.toString() === user._id.toString());
+
+  if (!isAlreadyMember) {
+    project.members.push(user._id);
     await project.save();
   }
 
-  return project;
+  return await Project.findById(projectId)
+    .populate("owner", "name email")
+    .populate("members", "name email role");
 };
-
 /**
  * Delete project (only owner should call this)
  */
