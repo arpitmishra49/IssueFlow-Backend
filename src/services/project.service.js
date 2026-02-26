@@ -51,6 +51,7 @@ export const getProjectById = async (projectId) => {
 /**
  * Add member to project
  */
+//Adding members to the project
 export const addMemberToProject = async (projectId, email) => {
   const project = await Project.findById(projectId);
 
