@@ -38,6 +38,7 @@ export const registerUser = async (userData) => {
 /**
  * Handles user login
  */
+//The entire login logic !
 export const loginUser = async ({ email, password }) => {
   const user = await User.findOne({ email }).select("+password");
 
