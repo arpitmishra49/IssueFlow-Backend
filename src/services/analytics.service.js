@@ -3,14 +3,15 @@ import Issue from "../models/issue.model.js";
 import Project from "../models/project.model.js";
 import ActivityLog from "../models/activityLog.model.js";
 
-const ensureProjectAccess = async (projectId, userId) => {
+const ensureProjectAccess = async (projectId, userId, role) => {
   const project = await Project.findById(projectId);
 
   if (!project) {
     throw new Error("Project not found");
   }
 
-  if (!project.members.includes(userId)) {
+  // Admin can view analytics for any project regardless of membership
+  if (role !== "admin" && !project.members.map(String).includes(String(userId))) {
     throw new Error("Not authorized for this project");
   }
 
@@ -18,7 +19,7 @@ const ensureProjectAccess = async (projectId, userId) => {
 };
 
 export const getProjectAnalytics = async (projectId, user) => {
-  await ensureProjectAccess(projectId, user.id);
+  await ensureProjectAccess(projectId, user.id, user.role);
 
   const objectProjectId = new mongoose.Types.ObjectId(projectId);
 

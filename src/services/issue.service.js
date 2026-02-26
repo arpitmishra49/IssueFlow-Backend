@@ -66,9 +66,13 @@ export const assignIssue = async (issueId, developerId, user) => {
   }
 
   const previousStatus = issue.status;
-  const isUnassigning  = !developerId; // empty string or null means unassign
+  const isUnassigning = !developerId; // null/undefined/empty string means unassign
 
-  issue.assignedTo = isUnassigning ? null : developerId;
+  if (isUnassigning) {
+    issue.assignedTo = undefined; // unset the field cleanly in Mongoose
+  } else {
+    issue.assignedTo = new mongoose.Types.ObjectId(String(developerId));
+  }
 
   // When unassigning, reset status to open so it re-enters the workflow
   if (isUnassigning) {
@@ -173,6 +177,16 @@ export const getProjectIssues = async (projectId, userId, userRole) => {
       .populate(populateOptions[0])
       .populate(populateOptions[1])
       .populate(populateOptions[2]);
+  }
+
+  // Admin: full access — all issues, or scoped to a project
+  if (userRole === "admin") {
+    const query = projectId ? { project: projectId } : {};
+    return Issue.find(query)
+      .populate(populateOptions[0])
+      .populate(populateOptions[1])
+      .populate(populateOptions[2])
+      .sort({ createdAt: -1 });
   }
 
   // Other roles: project-scoped or all member projects
