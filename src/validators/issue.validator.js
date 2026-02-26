@@ -1,5 +1,5 @@
 import { body, param } from "express-validator";
-
+//Validator
 export const createIssueValidator = [
   body("title").notEmpty().withMessage("Title is required"),
   body("severity")
