@@ -13,6 +13,7 @@ import {
   assignIssue,
   updateIssueStatus,
   getIssues,
+  deleteIssue,
 } from "../controllers/issue.controller.js";
 
 const router = express.Router();
@@ -48,5 +49,15 @@ router.patch(
 
 // Get Issues
 router.get("/", authenticate, getIssues);
+
+// Delete Issue (Admin only)
+router.delete(
+  "/:id",
+  authenticate,
+  authorizeRoles("admin"),
+  issueIdValidator,
+  validate,
+  deleteIssue
+);
 
 export default router;

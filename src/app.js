@@ -32,7 +32,7 @@ app.use(express.json());
 app.use(sanitizeMiddleware);
 
 // Rate limiting
-app.use(apiRateLimiter);
+// app.use(apiRateLimiter);
 
 // Logging (development only)
 if (process.env.NODE_ENV !== "production") {

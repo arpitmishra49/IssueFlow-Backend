@@ -8,7 +8,7 @@ export const createProject = async (data, userId) => {
   const project = await Project.create({
     ...data,
     owner: userId,
-    members: [userId], // owner is automatically a member
+    members: [userId],
   });
 
   return project;
@@ -17,12 +17,20 @@ export const createProject = async (data, userId) => {
 /**
  * Get all projects for a user
  */
-export const getUserProjects = async (userId) => {
-  const projects = await Project.find({
-    members: userId,
-  }).populate("owner", "name email");
+export const getUserProjects = async (user) => {
+  // ✅ Admin sees everything
+  if (user.role === "admin") {
+    return await Project.find()
+      .populate("owner", "name email")
+      .populate("members", "name email role");
+  }
 
-  return projects;
+  // Others see only projects they belong to
+  return await Project.find({
+    members: user.id,
+  })
+    .populate("owner", "name email")
+    .populate("members", "name email role");
 };
 
 /**
@@ -69,17 +77,31 @@ export const addMemberToProject = async (projectId, email) => {
     .populate("owner", "name email")
     .populate("members", "name email role");
 };
+
 /**
- * Delete project (only owner should call this)
+ * Delete project
  */
-export const deleteProject = async (projectId) => {
+export const deleteProject = async (projectId, user) => {
   const project = await Project.findById(projectId);
 
   if (!project) {
     throw new Error("Project not found");
   }
 
-  await project.deleteOne();
+  // Admin can delete anything
+  if (user.role === "admin") {
+    await project.deleteOne();
+    return { message: "Project deleted successfully" };
+  }
 
-  return { message: "Project deleted successfully" };
+  // Manager can delete only if owner
+  if (
+    user.role === "manager" &&
+    project.owner.toString() === user.id
+  ) {
+    await project.deleteOne();
+    return { message: "Project deleted successfully" };
+  }
+
+  throw new Error("Not authorized to delete this project");
 };

@@ -18,7 +18,8 @@ export const createProject = async (req, res, next) => {
 
 export const getProjects = async (req, res, next) => {
   try {
-    const projects = await projectService.getUserProjects(req.user.id);
+    // ✅ Pass full user object
+    const projects = await projectService.getUserProjects(req.user);
 
     res.status(200).json({
       status: "success",
@@ -46,7 +47,7 @@ export const addMember = async (req, res, next) => {
   try {
     const project = await projectService.addMemberToProject(
       req.params.id,
-      req.body.email // pass email only
+      req.body.email
     );
 
     res.status(200).json({
@@ -60,7 +61,11 @@ export const addMember = async (req, res, next) => {
 
 export const deleteProject = async (req, res, next) => {
   try {
-    const result = await projectService.deleteProject(req.params.id);
+    // ✅ Authorization handled inside service
+    const result = await projectService.deleteProject(
+      req.params.id,
+      req.user
+    );
 
     res.status(200).json({
       status: "success",

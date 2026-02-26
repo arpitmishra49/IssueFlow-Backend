@@ -7,7 +7,6 @@ import ActivityLog from "../models/activityLog.model.js";
  * Ensure user is member of project
  */
 const checkProjectMembership = async (projectId, userId) => {
-  // ✅ Prevent invalid ObjectId causing 400 CastError
   if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
     throw new Error("Valid project ID is required");
   }
@@ -42,7 +41,18 @@ export const createIssue = async (data, user) => {
     performedBy: user.id,
   });
 
-  return issue;
+  // ✅ RETURN POPULATED ISSUE
+  return await Issue.findById(issue._id)
+    .populate("assignedTo", "name email role")
+    .populate("createdBy", "name email")
+    .populate({
+      path: "project",
+      select: "name members",
+      populate: {
+        path: "members",
+        select: "name email role",
+      },
+    });
 };
 
 /**
@@ -56,25 +66,41 @@ export const assignIssue = async (issueId, developerId, user) => {
   }
 
   const previousStatus = issue.status;
+  const isUnassigning  = !developerId; // empty string or null means unassign
 
-  issue.assignedTo = developerId;
-  issue.status = "assigned";
+  issue.assignedTo = isUnassigning ? null : developerId;
+
+  // When unassigning, reset status to open so it re-enters the workflow
+  if (isUnassigning) {
+    issue.status = "open";
+  }
 
   await issue.save();
 
   await ActivityLog.create({
     issue: issue._id,
-    action: "ISSUE_ASSIGNED",
+    action: isUnassigning ? "ISSUE_UNASSIGNED" : "ISSUE_ASSIGNED",
     from: previousStatus,
-    to: "assigned",
+    to: issue.status,
     performedBy: user.id,
   });
 
-  return issue;
+  // ✅ RETURN POPULATED ISSUE
+  return await Issue.findById(issueId)
+    .populate("assignedTo", "name email role")
+    .populate("createdBy", "name email")
+    .populate({
+      path: "project",
+      select: "name members",
+      populate: {
+        path: "members",
+        select: "name email role",
+      },
+    });
 };
 
 /**
- * Update Issue Status (workflow controlled)
+ * Update Issue Status
  */
 export const updateIssueStatus = async (issueId, newStatus, user) => {
   const issue = await Issue.findById(issueId);
@@ -97,29 +123,72 @@ export const updateIssueStatus = async (issueId, newStatus, user) => {
     performedBy: user.id,
   });
 
-  return issue;
+  // ✅ RETURN POPULATED ISSUE
+  return await Issue.findById(issueId)
+    .populate("assignedTo", "name email role")
+    .populate("createdBy", "name email")
+    .populate({
+      path: "project",
+      select: "name members",
+      populate: {
+        path: "members",
+        select: "name email role",
+      },
+    });
 };
 
 /**
- * Get Issues for a project
+ * Delete Issue (admin only)
  */
-export const getProjectIssues = async (projectId, userId) => {
-  if (projectId) {
-    await checkProjectMembership(projectId, userId);
+export const deleteIssue = async (issueId) => {
+  const issue = await Issue.findById(issueId);
+  if (!issue) throw new Error("Issue not found");
+  await Issue.findByIdAndDelete(issueId);
+  await ActivityLog.deleteMany({ issue: issueId });
+  return { id: issueId };
+};
 
-    return Issue.find({ project: projectId })
-      .populate("assignedTo", "name email")
-      .populate("createdBy", "name email")
-      .populate("project", "name");
+/**
+ * Get Issues
+ */
+export const getProjectIssues = async (projectId, userId, userRole) => {
+  const populateOptions = [
+    { path: "assignedTo", select: "name email role" },
+    { path: "createdBy", select: "name email" },
+    {
+      path: "project",
+      select: "name members",
+      populate: { path: "members", select: "name email role" },
+    },
+  ];
+
+  // Developer: only see issues explicitly assigned to them
+  if (userRole === "developer") {
+    const query = { assignedTo: userId };
+    if (projectId) {
+      await checkProjectMembership(projectId, userId);
+      query.project = projectId;
+    }
+    return Issue.find(query)
+      .populate(populateOptions[0])
+      .populate(populateOptions[1])
+      .populate(populateOptions[2]);
   }
 
-  // If no projectId → return issues from projects where user is member
-  const projects = await Project.find({ members: userId }).select("_id");
+  // Other roles: project-scoped or all member projects
+  if (projectId) {
+    await checkProjectMembership(projectId, userId);
+    return Issue.find({ project: projectId })
+      .populate(populateOptions[0])
+      .populate(populateOptions[1])
+      .populate(populateOptions[2]);
+  }
 
+  const projects = await Project.find({ members: userId }).select("_id");
   const projectIds = projects.map((p) => p._id);
 
   return Issue.find({ project: { $in: projectIds } })
-    .populate("assignedTo", "name email")
-    .populate("createdBy", "name email")
-    .populate("project", "name");
+    .populate(populateOptions[0])
+    .populate(populateOptions[1])
+    .populate(populateOptions[2]);
 };
